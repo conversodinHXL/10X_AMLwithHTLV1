@@ -1,0 +1,45 @@
+library(Seurat) # v3.1.4
+library(ggplot2)
+
+#import data
+peaks <- Read10X_h5("HZS_filtered_peak_bc_matrix.h5")
+gtf_file="../gencode.v36.annotation.new.sort.gtf"
+
+activity.matrix <- CreateGeneActivityMatrix(peak.matrix = peaks, 
+                                            annotation.file = gtf_file, 
+                                            upstream = 3000, 
+                                            verbose = TRUE)
+
+pbmc.atac <- CreateSeuratObject(counts = peaks, assay = "ATAC", project = "10x_ATAC")
+pbmc.atac[["ACTIVITY"]] <- CreateAssayObject(counts = activity.matrix)
+
+#ATAC data filtering
+pbmc.atac <- subset(pbmc.atac, subset = nCount_ATAC > 1)
+pbmc.atac$tech <- "atac"
+
+DefaultAssay(pbmc.atac) <- "ATAC"
+VariableFeatures(pbmc.atac) <- names(which(Matrix::rowSums(pbmc.atac) > 100))
+
+#Dimensionality Reduction and clustering
+pbmc.atac <- RunLSI(pbmc.atac, n = 50, scale.max = NULL)
+pbmc.atac <- RunUMAP(pbmc.atac, reduction = "lsi", dims = 1:50)
+
+pbmc=pbmc.atac
+pbmc <- FindNeighbors(object = pbmc, reduction = 'lsi', dims = 2:30)
+pbmc <- FindClusters(object = pbmc, verbose = FALSE, algorithm = 3)
+
+pbmc@assays$ATAC=pbmc@assays$ACTIVITY
+
+#cell annotation
+ct=read.csv("cellType.csv",header=T,row.names = 1)
+pbmc@meta.data$ct=ct$biological_resource
+
+
+#plot feature plot
+FeaturePlot(
+  object = pbmc,
+  features = c('HTLV1-gag-pro-pol','HTLV1-gag-pro','HTLV1-gag','HTLV1-pro','HTLV1-pol','HTLV1-rex','HTLV1-tax','HTLV1-env','IL2','HBZ',"JAG1","CD70","HLA-DRB1","GPR55"),
+  pt.size = 0.1,
+  max.cutoff = 'q95',
+  ncol = 3
+)
