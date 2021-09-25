@@ -1,0 +1,5 @@
+#make ref for cellranger mapping
+cellranger mkref --genome=GenomeWithHTLV1 --fasta=GRCh38.primary_assembly.genome.fa --genes=gencode.v36.annotation.new.sort.gtf
+
+#mapping to refrence genome with cellranger
+cellranger-atac count --id=190724HBY_test --fastq=../190724HBY/ --sample=190724HBY --referenceGenomeWithHTLV1
